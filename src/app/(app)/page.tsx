@@ -37,9 +37,9 @@ export default async function InboxPage({ searchParams }: PageProps<"/">) {
           <h1 className="text-xl font-semibold">{showArchived ? "Archived" : "Inbox"}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <form action="/auth/signout" method="post">
-            <button className="rounded-full px-3 py-2 text-sm text-slate-500">Sign out</button>
-          </form>
+          <Link href="/settings" className="rounded-full px-3 py-2 text-sm text-slate-500">
+            Settings
+          </Link>
           {!showArchived && (
             <Link href="/clients/new" className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
               + Add client

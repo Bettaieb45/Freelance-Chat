@@ -4,8 +4,8 @@ One private chat link per client. Clients open the link, enter a passcode once, 
 no sign-up. You manage every conversation from one inbox. See [CLAUDE.md](CLAUDE.md) for the full
 product plan and decisions.
 
-**Status:** Phase 1 — Google sign-in, add/archive clients, passcode-protected client page, realtime
-web chat with read receipts, inbox.
+**Status:** Phase 2 — everything from Phase 1 (Google sign-in, clients, passcode-protected client
+page, realtime web chat, inbox) plus the Telegram bridge: clients can chat with you from Telegram.
 
 ## Setup checklist
 
@@ -71,9 +71,32 @@ browser, but a laptop is easier for the Google Cloud step.
       message. It appears in your inbox instantly.
 - [ ] Optional: in Safari/Chrome use **Add to Home Screen** to install the inbox as an app.
 
+### 6. Telegram (Phase 2)
+
+- [ ] **Create the bot:** in Telegram, open [@BotFather](https://t.me/BotFather), send `/newbot`,
+      give it a display name (clients see this — e.g. your name) and a username ending in `bot`
+      (e.g. `OussamaChatBot`). Copy the **token** it gives you. Keep it private.
+      Optional: `/setuserpic` and `/setdescription` to make it look nice.
+- [ ] **Add the token to Vercel:** **Settings → Environment Variables →** `TELEGRAM_BOT_TOKEN` =
+      the token (all environments).
+- [ ] **Update the database:** Supabase **SQL Editor → New query**, paste the full contents of
+      [`supabase/migrations/20261005000000_phase2_telegram.sql`](supabase/migrations/20261005000000_phase2_telegram.sql),
+      **Run**. It only adds things, so the live Phase 1 app keeps working.
+- [ ] **To test on a PR preview link** (optional): Vercel **Settings → Deployment Protection →
+      Protection Bypass for Automation → Add**. Previews are password-protected by Vercel, and
+      this lets Telegram reach them. Then redeploy the preview.
+- [ ] **Connect:** open the app → **Settings → Connect Telegram to this site**. You should see
+      "✓ Receiving messages on this site".
+
+Only one site can receive Telegram messages at a time. If you connect a preview link for testing,
+open **Settings** on your production site after merging and tap **Connect** there again.
+
+**How clients use it:** on their chat page they pick "On Telegram", tap **Open Telegram**, then
+**Start** in the bot. From then on they chat in Telegram; your replies are sent there. Send
+`/stop` in the bot (or "Disconnect" on either side) to go back to the web page.
+
 ### Later phases (not needed yet)
 
-- **Phase 2 — Telegram:** create a bot with [@BotFather](https://t.me/BotFather), copy its token.
 - **Phase 3 — Email:** needs a domain for sending to and receiving from clients (see CLAUDE.md
   decision 6). Resend API key.
 - **Phase 4 — Push notifications:** VAPID keys (generated with `npx web-push generate-vapid-keys`).

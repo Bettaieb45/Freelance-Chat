@@ -11,6 +11,12 @@ export default async function ClientChatPage({ params }: PageProps<"/clients/[id
   const { data: client } = await supabase.from("clients").select("*").eq("id", id).maybeSingle();
   if (!client) notFound();
 
+  const { data: telegram } = await supabase
+    .from("telegram_links")
+    .select("telegram_username, telegram_name")
+    .eq("client_id", id)
+    .maybeSingle();
+
   // Newest 500, shown oldest-first.
   const { data: messages } = await supabase
     .from("messages")
@@ -23,6 +29,7 @@ export default async function ClientChatPage({ params }: PageProps<"/clients/[id
     <FreelancerChat
       client={client as ClientRow}
       link={await clientPageUrl(client.magic_token)}
+      telegram={telegram}
       initialMessages={((messages ?? []) as Message[]).reverse()}
     />
   );

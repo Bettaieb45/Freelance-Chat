@@ -62,6 +62,12 @@ branding.
   window; needs Meta business verification; routing via wa.me link with pre-filled code)
 - Approvals and invoices on the client page
 - "Powered by" footer on client pages for growth
+- Opening to other freelancers: move the `ALLOWED_EMAIL` allowlist into the database with an
+  admin page (add/remove freelancers without redeploying), and give each freelancer their own
+  branded Telegram bot via Telegram Managed Bots (Bot API 9.6, April 2026): the app's main bot
+  enables Bot Management Mode, the freelancer taps "Create my Telegram bot" (pre-filled name),
+  the app gets the token with `getManagedBotToken`, stores it encrypted, and sets a per-bot
+  webhook. Keep the shared bot as a fallback for freelancers without Telegram.
 - Paid tier: WhatsApp, larger storage, custom branding, invoicing. Core (chat, email, Telegram)
   stays free.
 
@@ -77,13 +83,14 @@ branding.
 ## Data model (starting point)
 - freelancers: id, auth_user_id, name, email, business_hours, auto_reply_text
 - clients: id, freelancer_id, name, email, drive_link, magic_token,
-  preferred_channel (web|telegram|email), archived, last_message_* (inbox preview)
+  preferred_channel (web|telegram|email), channel_chosen_at, archived, last_message_* (inbox preview)
 - client_access (service role only): client_id, passcode_hash, failed_attempts, locked_until
 - client_sessions: auth_user_id (anonymous Supabase user), client_id — a device that entered the
   correct passcode
 - messages: id, client_id, sender (freelancer|client), body, channel (web|telegram|email),
-  created_at, delivered_at, read_at
-- telegram_links: client_id, telegram_chat_id
+  created_at, delivered_at, delivered_via, read_at
+- telegram_links: client_id, telegram_chat_id (unique), telegram_username, telegram_name
+- telegram_link_codes (service role only): one-time deep-link codes, 30 min expiry
 - push_subscriptions: freelancer_id, subscription_json
 - Use Row Level Security so freelancers only see their own clients and messages, and client
   devices only see their own conversation.
@@ -131,6 +138,16 @@ branding.
    cheap domain (~$10/year) at Phase 3. Fallback: send via Gmail SMTP (app password) and receive
    via Gmail plus-addressing (`you+<id>@gmail.com`) read over IMAP — free, but exposes the
    personal Gmail address to clients. Decide before starting Phase 3.
+
+7. **Phase 2 delivers to Telegram immediately.** When a client uses Telegram, every freelancer
+   reply is sent there right away (`src/lib/delivery.ts`). Phase 4 replaces this with the
+   escalation ladder (live-only while the page is open, then ~10 min, then 24 h).
+   - Text only: photos/files sent to the bot get a polite "use the Drive folder" reply.
+   - The webhook secret is derived from `TELEGRAM_BOT_TOKEN` (HMAC), so there's no extra env var.
+   - Archiving a client disconnects Telegram. Resetting the passcode/link does not (the Telegram
+     chat belongs to the real client), but it voids outstanding link codes.
+   - The freelancer registers the webhook from Settings ("Connect Telegram to this site"). On
+     Vercel previews this needs Protection Bypass for Automation (`VERCEL_AUTOMATION_BYPASS_SECRET`).
 
 ## Repo conventions
 - Schema lives in `supabase/migrations/` (one new file per change). RLS/RPC tests in

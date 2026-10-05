@@ -17,7 +17,7 @@ function dayLabel(iso: string): string {
 
 function Status({ m }: { m: Message }) {
   if (m.read_at) return <span className="text-sky-200" title="Seen">✓✓</span>;
-  if (m.delivered_at) return <span title="Delivered">✓✓</span>;
+  if (m.delivered_at) return <span title={m.delivered_via === "telegram" ? "Delivered to Telegram" : "Delivered"}>✓✓</span>;
   return <span title="Sent">✓</span>;
 }
 
