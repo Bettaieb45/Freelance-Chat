@@ -62,6 +62,12 @@ branding.
   window; needs Meta business verification; routing via wa.me link with pre-filled code)
 - Approvals and invoices on the client page
 - "Powered by" footer on client pages for growth
+- Opening to other freelancers: move the `ALLOWED_EMAIL` allowlist into the database with an
+  admin page (add/remove freelancers without redeploying), and give each freelancer their own
+  branded Telegram bot via Telegram Managed Bots (Bot API 9.6, April 2026): the app's main bot
+  enables Bot Management Mode, the freelancer taps "Create my Telegram bot" (pre-filled name),
+  the app gets the token with `getManagedBotToken`, stores it encrypted, and sets a per-bot
+  webhook. Keep the shared bot as a fallback for freelancers without Telegram.
 - Paid tier: WhatsApp, larger storage, custom branding, invoicing. Core (chat, email, Telegram)
   stays free.
 
