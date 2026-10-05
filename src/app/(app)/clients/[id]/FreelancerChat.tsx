@@ -6,16 +6,19 @@ import { Composer, ConnectionBanner, MessageList } from "@/components/Chat";
 import { useThread } from "@/components/useThread";
 import { initials } from "@/lib/format";
 import { createFreelancerBrowserClient } from "@/lib/supabase/browser";
-import type { ClientRow, Message } from "@/lib/types";
+import type { ClientRow, Message, TelegramLink } from "@/lib/types";
+import { sendMessageAction } from "../actions";
 import { ClientDetails } from "./ClientDetails";
 
 export function FreelancerChat({
   client,
   link,
+  telegram,
   initialMessages,
 }: {
   client: ClientRow;
   link: string;
+  telegram: TelegramLink | null;
   initialMessages: Message[];
 }) {
   const supabase = useMemo(() => createFreelancerBrowserClient(), []);
@@ -25,16 +28,12 @@ export function FreelancerChat({
 
   async function send(body: string) {
     setError(null);
-    const { data, error } = await supabase
-      .from("messages")
-      .insert({ client_id: client.id, sender: "freelancer", body })
-      .select()
-      .single();
-    if (error) {
-      setError("Message not sent. Check your connection and try again.");
+    const res = await sendMessageAction(client.id, body);
+    if (!res.ok) {
+      setError(res.error);
       return false;
     }
-    add(data as Message);
+    add(res.data);
     return true;
   }
 
@@ -50,7 +49,13 @@ export function FreelancerChat({
           </span>
           <span className="min-w-0">
             <span className="block truncate font-medium">{client.name}</span>
-            <span className="block text-xs text-slate-500">{client.archived ? "Archived" : "Tap for link & settings"}</span>
+            <span className="block text-xs text-slate-500">
+              {client.archived
+                ? "Archived"
+                : client.preferred_channel === "telegram" && telegram
+                  ? "On Telegram · tap for settings"
+                  : "Tap for link & settings"}
+            </span>
           </span>
         </button>
       </header>
@@ -68,7 +73,7 @@ export function FreelancerChat({
       ) : (
         <Composer onSend={send} placeholder={`Message ${client.name}`} />
       )}
-      {showDetails && <ClientDetails client={client} link={link} onClose={() => setShowDetails(false)} />}
+      {showDetails && <ClientDetails client={client} link={link} telegram={telegram} onClose={() => setShowDetails(false)} />}
     </div>
   );
 }

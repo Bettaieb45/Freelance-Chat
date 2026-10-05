@@ -1,5 +1,8 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
+import { loadClientForDevice } from "@/lib/client-device";
+import { botUsername, telegramConfigured } from "@/lib/telegram/bot";
 import { MAX_PASSCODE_ATTEMPTS, PASSCODE_LENGTH, PASSCODE_LOCK_MINUTES, normalizePasscode, verifyPasscode } from "@/lib/secrets";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClientDeviceServerClient } from "@/lib/supabase/server";
@@ -50,4 +53,32 @@ export async function unlockAction(token: string, rawPasscode: string): Promise<
     .upsert({ auth_user_id: auth.user.id, client_id: client.id }, { ignoreDuplicates: true });
   if (error) return { ok: false, error: "Something went wrong. Please try again." };
   return { ok: true };
+}
+
+const TELEGRAM_CODE_MINUTES = 30;
+
+/**
+ * Creates a one-time Telegram deep link for an unlocked browser. The client
+ * taps it, Telegram opens the bot, and "/start <code>" links their chat.
+ */
+export async function createTelegramLinkAction(token: string): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  if (!telegramConfigured()) return { ok: false, error: "Telegram isn't available yet." };
+  const result = await loadClientForDevice(token);
+  if (!result?.unlocked) return { ok: false, error: "Please reload the page and enter your passcode." };
+
+  // Telegram allows up to 64 chars of [A-Za-z0-9_-] in a start parameter.
+  const code = randomBytes(24).toString("base64url");
+  const admin = createAdminClient();
+  const { error } = await admin.from("telegram_link_codes").insert({
+    code,
+    client_id: result.client.id,
+    expires_at: new Date(Date.now() + TELEGRAM_CODE_MINUTES * 60_000).toISOString(),
+  });
+  if (error) return { ok: false, error: "Something went wrong. Please try again." };
+
+  try {
+    return { ok: true, url: `https://t.me/${await botUsername()}?start=${code}` };
+  } catch {
+    return { ok: false, error: "Telegram isn't reachable right now. Please try again later." };
+  }
 }

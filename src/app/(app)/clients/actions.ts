@@ -2,9 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { requireFreelancer } from "@/lib/auth";
+import { deliverFreelancerMessage } from "@/lib/delivery";
 import { generateMagicToken, generatePasscode, hashPasscode } from "@/lib/secrets";
 import { clientPageUrl } from "@/lib/site-url";
-import type { Invite } from "@/lib/types";
+import type { Invite, Message } from "@/lib/types";
 
 export type ActionResult<T = undefined> = { ok: true; data: T } | { ok: false; error: string };
 
@@ -100,6 +101,28 @@ export async function setArchivedAction(clientId: string, archived: boolean): Pr
   const { error } = await supabase.rpc("set_client_archived", { p_client_id: clientId, p_archived: archived });
   if (error) return { ok: false, error: "Couldn't update. Please try again." };
   revalidatePath("/");
+  revalidatePath(`/clients/${clientId}`);
+  return { ok: true, data: undefined };
+}
+
+/** Saves a reply (RLS checks ownership), then delivers it on the client's channel. */
+export async function sendMessageAction(clientId: string, body: string): Promise<ActionResult<Message>> {
+  const { supabase } = await requireFreelancer();
+  const text = body.trim();
+  if (!text || text.length > 5000) return { ok: false, error: "Messages must be 1–5000 characters." };
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({ client_id: clientId, sender: "freelancer", body: text })
+    .select()
+    .single();
+  if (error || !data) return { ok: false, error: "Message not sent. Check your connection and try again." };
+  return { ok: true, data: await deliverFreelancerMessage(data as Message) };
+}
+
+export async function disconnectTelegramAction(clientId: string): Promise<ActionResult> {
+  const { supabase } = await requireFreelancer();
+  const { error } = await supabase.rpc("unlink_telegram", { p_client_id: clientId });
+  if (error) return { ok: false, error: "Couldn't disconnect Telegram. Please try again." };
   revalidatePath(`/clients/${clientId}`);
   return { ok: true, data: undefined };
 }

@@ -4,10 +4,20 @@ import { useRouter } from "next/navigation";
 import { useActionState, useState, useTransition } from "react";
 import { ClientFields } from "@/components/ClientFields";
 import { InviteCard } from "@/components/InviteCard";
-import type { ClientRow, Invite } from "@/lib/types";
-import { resetAccessAction, setArchivedAction, updateClientAction } from "../actions";
+import type { ClientRow, Invite, TelegramLink } from "@/lib/types";
+import { disconnectTelegramAction, resetAccessAction, setArchivedAction, updateClientAction } from "../actions";
 
-export function ClientDetails({ client, link, onClose }: { client: ClientRow; link: string; onClose: () => void }) {
+export function ClientDetails({
+  client,
+  link,
+  telegram,
+  onClose,
+}: {
+  client: ClientRow;
+  link: string;
+  telegram: TelegramLink | null;
+  onClose: () => void;
+}) {
   const router = useRouter();
   const [invite, setInvite] = useState<Invite | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +49,17 @@ export function ClientDetails({ client, link, onClose }: { client: ClientRow; li
       } else setError(res.error);
     });
   }
+
+  function disconnectTelegram() {
+    if (!confirm(`Disconnect ${client.name}'s Telegram? Your replies will only appear on their chat page.`)) return;
+    startTransition(async () => {
+      const res = await disconnectTelegramAction(client.id);
+      if (res.ok) router.refresh();
+      else setError(res.error);
+    });
+  }
+
+  const telegramLabel = telegram?.telegram_username ? `@${telegram.telegram_username}` : telegram?.telegram_name;
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
@@ -89,6 +110,25 @@ export function ClientDetails({ client, link, onClose }: { client: ClientRow; li
             </div>
           </section>
         )}
+
+        <section className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Gets your replies on</p>
+          {telegram ? (
+            <div className="mt-1 flex items-center justify-between gap-3">
+              <p className="text-sm">
+                ✈️ Telegram{telegramLabel ? <span className="text-slate-500"> · {telegramLabel}</span> : null}
+              </p>
+              <button disabled={busy} onClick={disconnectTelegram} className="text-sm text-red-600">
+                Disconnect
+              </button>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm">
+              🌐 Chat page only
+              {!client.channel_chosen_at && <span className="text-slate-500"> · hasn&apos;t chosen yet</span>}
+            </p>
+          )}
+        </section>
 
         <form action={saveAction} className="mt-4 space-y-3 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
           <ClientFields defaults={client} />

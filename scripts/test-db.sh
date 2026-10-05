@@ -15,5 +15,5 @@ trap cleanup EXIT
 PSQL=(psql -h "$DIR" -p "$PORT" -U postgres -d postgres -v ON_ERROR_STOP=1 -q)
 "${PSQL[@]}" -f supabase/tests/supabase_stub.sql
 for f in supabase/migrations/*.sql; do "${PSQL[@]}" -f "$f"; done
-"${PSQL[@]}" -o /dev/null -f supabase/tests/rls_test.sql
+for t in supabase/tests/*_test.sql; do "${PSQL[@]}" -o /dev/null -f "$t"; done
 echo "DB tests passed"

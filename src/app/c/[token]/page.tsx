@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { loadClientForDevice } from "@/lib/client-device";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClientDeviceServerClient } from "@/lib/supabase/server";
+import { telegramConfigured } from "@/lib/telegram/bot";
 import type { Message } from "@/lib/types";
 import { ClientChat } from "./ClientChat";
 import { PasscodeForm } from "./PasscodeForm";
@@ -10,31 +11,13 @@ export const metadata: Metadata = { title: "Private chat", referrer: "no-referre
 
 export default async function ClientPage({ params }: PageProps<"/c/[token]">) {
   const { token } = await params;
-  const admin = createAdminClient();
-  const { data: client } = await admin
-    .from("clients")
-    .select("id, name, drive_link, archived, freelancers(name)")
-    .eq("magic_token", token)
-    .maybeSingle();
-  if (!client || client.archived) notFound();
+  const result = await loadClientForDevice(token);
+  if (!result) notFound();
+  const { client, unlocked } = result;
 
-  const freelancer = Array.isArray(client.freelancers) ? client.freelancers[0] : client.freelancers;
-  const freelancerName = freelancer?.name ?? "your freelancer";
+  if (!unlocked) return <PasscodeForm token={token} freelancerName={client.freelancerName} />;
 
-  const device = await createClientDeviceServerClient();
-  const { data: auth } = await device.auth.getUser();
-  const { data: session } = auth.user
-    ? await admin
-        .from("client_sessions")
-        .select("client_id")
-        .eq("auth_user_id", auth.user.id)
-        .eq("client_id", client.id)
-        .maybeSingle()
-    : { data: null };
-
-  if (!session) return <PasscodeForm token={token} freelancerName={freelancerName} />;
-
-  const { data: messages } = await admin
+  const { data: messages } = await createAdminClient()
     .from("messages")
     .select("*")
     .eq("client_id", client.id)
@@ -43,9 +26,9 @@ export default async function ClientPage({ params }: PageProps<"/c/[token]">) {
 
   return (
     <ClientChat
-      clientId={client.id}
-      freelancerName={freelancerName}
-      driveLink={client.drive_link}
+      token={token}
+      client={client}
+      telegramAvailable={telegramConfigured()}
       initialMessages={((messages ?? []) as Message[]).reverse()}
     />
   );
