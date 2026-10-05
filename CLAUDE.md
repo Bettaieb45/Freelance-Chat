@@ -76,8 +76,9 @@ branding.
 
 ## Data model (starting point)
 - freelancers: id, auth_user_id, name, email, business_hours, auto_reply_text
-- clients: id, freelancer_id, name, email, drive_link, magic_token, passcode_hash,
-  preferred_channel (web|telegram|email), archived
+- clients: id, freelancer_id, name, email, drive_link, magic_token,
+  preferred_channel (web|telegram|email), archived, last_message_* (inbox preview)
+- client_access (service role only): client_id, passcode_hash, failed_attempts, locked_until
 - client_sessions: auth_user_id (anonymous Supabase user), client_id — a device that entered the
   correct passcode
 - messages: id, client_id, sender (freelancer|client), body, channel (web|telegram|email),
@@ -131,6 +132,13 @@ branding.
    via Gmail plus-addressing (`you+<id>@gmail.com`) read over IMAP — free, but exposes the
    personal Gmail address to clients. Decide before starting Phase 3.
 
+## Repo conventions
+- Schema lives in `supabase/migrations/` (one new file per change). RLS/RPC tests in
+  `supabase/tests/rls_test.sql`, run with `npm run test:db`.
+- Before pushing: `npm run lint && npm run typecheck && npm test && npm run test:db`.
+- Freelancer and client devices use separate Supabase auth cookies (`src/lib/supabase/cookies.ts`).
+- Service-role client (`src/lib/supabase/admin.ts`) only after checking who is calling.
+
 ## Working style
 - The founder builds from the Claude mobile app (Claude Code on the web). Keep each task to one
   phase or smaller.
@@ -138,3 +146,5 @@ branding.
 - Maintain a README with a setup checklist (Supabase, Vercel env vars, Telegram BotFather token,
   Resend keys).
 - Keep the UI mobile-first and simple.
+
+@AGENTS.md
