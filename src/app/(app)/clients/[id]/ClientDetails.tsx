@@ -122,6 +122,10 @@ export function ClientDetails({
                 Disconnect
               </button>
             </div>
+          ) : client.preferred_channel === "email" && client.email ? (
+            <p className="mt-1 text-sm">
+              ✉️ Email<span className="text-slate-500"> · {client.email}</span>
+            </p>
           ) : (
             <p className="mt-1 text-sm">
               🌐 Chat page only

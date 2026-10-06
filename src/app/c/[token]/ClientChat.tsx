@@ -14,11 +14,13 @@ export function ClientChat({
   token,
   client,
   telegramAvailable,
+  emailAvailable,
   initialMessages,
 }: {
   token: string;
   client: ClientPageData;
   telegramAvailable: boolean;
+  emailAvailable: boolean;
   initialMessages: Message[];
 }) {
   const router = useRouter();
@@ -28,8 +30,14 @@ export function ClientChat({
   const [showChooser, setShowChooser] = useState(false);
   const { freelancerName, driveLink } = client;
   // Only ask while there's more than one way to get updates.
-  const askChannel = telegramAvailable && !client.channelChosenAt;
-  const onTelegram = client.preferredChannel === "telegram" && !!client.telegram;
+  const hasChoice = telegramAvailable || emailAvailable;
+  const askChannel = hasChoice && !client.channelChosenAt;
+  const current =
+    client.preferredChannel === "telegram" && client.telegram
+      ? "on Telegram ✈️"
+      : client.preferredChannel === "email" && client.email
+        ? "by email ✉️"
+        : "on this page";
 
   async function send(body: string) {
     setError(null);
@@ -56,9 +64,9 @@ export function ClientChat({
           </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate font-medium">{freelancerName}</span>
-            {telegramAvailable && client.channelChosenAt ? (
+            {hasChoice && client.channelChosenAt ? (
               <button onClick={() => setShowChooser(true)} className="block text-xs text-slate-500">
-                Replies {onTelegram ? "on Telegram ✈️" : "on this page"} · <span className="text-indigo-600">Change</span>
+                Replies {current} · <span className="text-indigo-600">Change</span>
               </button>
             ) : (
               <span className="block text-xs text-slate-500">Private chat</span>
@@ -82,7 +90,7 @@ export function ClientChat({
       {askChannel && (
         <div className="border-b border-slate-200 bg-slate-50 px-4 py-4">
           <div className="mx-auto max-w-2xl">
-            <ChannelChooser token={token} client={client} supabase={supabase} telegramAvailable={telegramAvailable} />
+            <ChannelChooser token={token} client={client} supabase={supabase} telegramAvailable={telegramAvailable} emailAvailable={emailAvailable} />
           </div>
         </div>
       )}
@@ -101,6 +109,7 @@ export function ClientChat({
               client={client}
               supabase={supabase}
               telegramAvailable={telegramAvailable}
+              emailAvailable={emailAvailable}
               onDone={() => setShowChooser(false)}
             />
           </div>

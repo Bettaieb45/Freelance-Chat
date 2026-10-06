@@ -54,7 +54,9 @@ export function FreelancerChat({
                 ? "Archived"
                 : client.preferred_channel === "telegram" && telegram
                   ? "On Telegram · tap for settings"
-                  : "Tap for link & settings"}
+                  : client.preferred_channel === "email" && client.email
+                    ? "By email · tap for settings"
+                    : "Tap for link & settings"}
             </span>
           </span>
         </button>

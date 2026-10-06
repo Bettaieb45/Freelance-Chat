@@ -20,6 +20,7 @@ export type ClientRow = {
   drive_link: string | null;
   magic_token: string;
   preferred_channel: Channel;
+  email_reply_token: string;
   channel_chosen_at: string | null;
   archived: boolean;
   last_message_at: string | null;

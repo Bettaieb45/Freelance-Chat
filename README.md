@@ -5,7 +5,7 @@ no sign-up. You manage every conversation from one inbox. See [CLAUDE.md](CLAUDE
 product plan and decisions.
 
 **Status:** Phase 2 — everything from Phase 1 (Google sign-in, clients, passcode-protected client
-page, realtime web chat, inbox) plus the Telegram bridge: clients can chat with you from Telegram.
+page, realtime web chat, inbox), the Telegram bridge, and two-way email through your Gmail.
 
 ## Setup checklist
 
@@ -95,10 +95,38 @@ open **Settings** on your production site after merging and tap **Connect** ther
 **Start** in the bot. From then on they chat in Telegram; your replies are sent there. Send
 `/stop` in the bot (or "Disconnect" on either side) to go back to the web page.
 
+### 7. Email through your Gmail (Phase 3)
+
+Clients who pick "By email" get your replies from your Gmail address and can answer by just
+replying. Each client gets a private reply address like `you+c8f3…@gmail.com`; Gmail delivers it
+to your inbox and the app picks it up within a minute.
+
+- [ ] **App Password:** Google Account → **Security** → turn on **2-Step Verification** (required),
+      then open [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords),
+      create one called "Client Chat", and copy the 16-character password. Keep it private.
+- [ ] **Vercel → Settings → Environment Variables** (all environments):
+
+  | Name | Value |
+  | --- | --- |
+  | `GMAIL_ADDRESS` | your Gmail address |
+  | `GMAIL_APP_PASSWORD` | the App Password (spaces don't matter) |
+  | `CRON_SECRET` | any long random string, e.g. from a password generator (30+ characters) |
+
+- [ ] **Update the database:** Supabase **SQL Editor → New query**, paste the full contents of
+      [`supabase/migrations/20261006000000_phase3_email.sql`](supabase/migrations/20261006000000_phase3_email.sql),
+      **Run**. It only adds things.
+- [ ] **Redeploy** (Vercel → Deployments → ⋯ → Redeploy) so the new variables apply.
+- [ ] **Start the timer:** on your **production** site open **Settings → Email → Timer setup**,
+      tap **Copy SQL**, and run it in the Supabase SQL Editor. It checks your Gmail every minute.
+      (Run it from production, so the timer calls your production URL.)
+- [ ] **Check:** tap **Check email now** in Settings. You should see "✓ Checked for replies just now".
+
+Good to know: clients see your Gmail address; their replies also land in your Gmail inbox (you can
+ignore or archive them there, they're already in the app); and copies of what the app sends appear
+in your Gmail "Sent" folder. Gmail allows about 500 emails a day, plenty for this.
+
 ### Later phases (not needed yet)
 
-- **Phase 3 — Email:** needs a domain for sending to and receiving from clients (see CLAUDE.md
-  decision 6). Resend API key.
 - **Phase 4 — Push notifications:** VAPID keys (generated with `npx web-push generate-vapid-keys`).
 
 ## How client access works

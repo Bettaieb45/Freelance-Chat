@@ -14,15 +14,21 @@
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "email-reply-parser": "^2.3.9",
     "grammy": "^1.46.0",
+    "imapflow": "^2.2.6",
+    "mailparser": "^3.9.36",
     "next": "16.3.8",
+    "nodemailer": "^10.0.15",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^22.20.5",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
