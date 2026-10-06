@@ -11,16 +11,20 @@ export function ChannelChooser({
   client,
   supabase,
   telegramAvailable,
+  emailAvailable,
   onDone,
 }: {
   token: string;
   client: ClientPageData;
   supabase: SupabaseClient;
   telegramAvailable: boolean;
+  emailAvailable: boolean;
   onDone?: () => void;
 }) {
   const router = useRouter();
   const [telegramUrl, setTelegramUrl] = useState<string | null>(null);
+  const [askEmail, setAskEmail] = useState(false);
+  const [email, setEmail] = useState(client.email ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const linked = !!client.telegram;
@@ -62,6 +66,20 @@ export function ChannelChooser({
     });
   }
 
+  function saveEmail(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      const { error } = await supabase.rpc("client_set_email", { p_client_id: client.id, p_email: email });
+      if (error) setError(error.code === "22023" ? "That email address doesn't look right." : "Couldn't save. Please try again.");
+      else {
+        setAskEmail(false);
+        onDone?.();
+        router.refresh();
+      }
+    });
+  }
+
   function disconnect() {
     startTransition(async () => {
       const { error } = await supabase.rpc("unlink_telegram", { p_client_id: client.id });
@@ -96,6 +114,34 @@ export function ChannelChooser({
     );
   }
 
+  if (askEmail) {
+    return (
+      <form onSubmit={saveEmail}>
+        <p className="font-medium">Where should we email you?</p>
+        <p className="mt-1 text-sm text-slate-500">
+          You&apos;ll get {client.freelancerName}&apos;s replies by email and can answer straight from your inbox.
+        </p>
+        <input
+          type="email"
+          required
+          autoFocus
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          aria-label="Your email address"
+          className="mt-4 w-full rounded-xl bg-white px-4 py-3 text-[16px] ring-1 ring-slate-300 outline-none focus:ring-2 focus:ring-indigo-500"
+        />
+        {error && <p className="mt-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{error}</p>}
+        <button disabled={pending} className="mt-3 w-full rounded-xl bg-indigo-600 px-4 py-3 font-medium text-white disabled:opacity-60">
+          {pending ? "Saving…" : "Email me replies"}
+        </button>
+        <button type="button" onClick={() => setAskEmail(false)} className="mt-3 w-full text-sm text-slate-500">
+          Back
+        </button>
+      </form>
+    );
+  }
+
   const option = "flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left ring-1 disabled:opacity-60";
   return (
     <div>
@@ -127,6 +173,22 @@ export function ChannelChooser({
               </span>
             </span>
             {current === "telegram" && <span className="text-indigo-600">✓</span>}
+          </button>
+        )}
+        {emailAvailable && (
+          <button
+            disabled={pending}
+            onClick={() => setAskEmail(true)}
+            className={`${option} ${current === "email" ? "bg-indigo-50 ring-indigo-400" : "bg-white ring-slate-200"}`}
+          >
+            <span className="text-xl" aria-hidden>✉️</span>
+            <span className="flex-1">
+              <span className="block text-sm font-medium">By email</span>
+              <span className="block truncate text-xs text-slate-500">
+                {current === "email" && client.email ? client.email : "Get replies in your inbox and answer by email"}
+              </span>
+            </span>
+            {current === "email" && <span className="text-indigo-600">✓</span>}
           </button>
         )}
       </div>

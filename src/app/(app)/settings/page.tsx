@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { requireFreelancer } from "@/lib/auth";
+import { emailConfigured, gmailAddress, replyAddress } from "@/lib/email/config";
+import { siteOrigin } from "@/lib/site-url";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { botUsername, createBotClient, telegramConfigured } from "@/lib/telegram/bot";
 import { webhookUrl } from "@/lib/telegram/webhook-url";
 import { ConnectTelegramButton } from "./ConnectTelegramButton";
+import { CheckEmailButton, CopySetupSql } from "./EmailSection";
 
 async function telegramStatus() {
   if (!telegramConfigured()) return { state: "missing" as const };
@@ -21,9 +25,37 @@ async function telegramStatus() {
   }
 }
 
+async function emailStatus() {
+  if (!emailConfigured()) return null;
+  const { data } = await createAdminClient().from("email_sync_state").select("last_run_at, last_error").eq("id", 1).maybeSingle();
+  const secret = process.env.CRON_SECRET;
+  const url = `${await siteOrigin()}/api/cron/email`;
+  const sql = secret
+    ? `create extension if not exists pg_cron;
+create extension if not exists pg_net;
+select cron.unschedule('client-chat-email') where exists (select 1 from cron.job where jobname = 'client-chat-email');
+select cron.schedule('client-chat-email', '* * * * *', $$
+  select net.http_post(
+    url := '${url}',
+    headers := jsonb_build_object('Authorization', 'Bearer ${secret}'),
+    timeout_milliseconds := 30000
+  );
+$$);`
+    : null;
+  return { address: gmailAddress(), lastRun: data?.last_run_at ?? null, lastError: data?.last_error ?? null, sql };
+}
+
+function ago(iso: string) {
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 90) return "just now";
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} days ago`;
+}
+
 export default async function SettingsPage() {
   const { freelancer } = await requireFreelancer();
-  const tg = await telegramStatus();
+  const [tg, email] = await Promise.all([telegramStatus(), emailStatus()]);
 
   return (
     <main className="mx-auto w-full max-w-lg flex-1 p-4">
@@ -65,6 +97,38 @@ export default async function SettingsPage() {
               <p className="mt-1 text-xs text-red-700">Last delivery error from Telegram: {tg.lastError}</p>
             )}
             {tg.state !== "connected" && <ConnectTelegramButton />}
+          </>
+        )}
+      </section>
+
+      <section className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+        <h2 className="font-medium">Email</h2>
+        {!email ? (
+          <p className="mt-2 text-sm text-slate-600">
+            Not set up. Add <code>GMAIL_ADDRESS</code>, <code>GMAIL_APP_PASSWORD</code> and <code>CRON_SECRET</code> in
+            Vercel and redeploy. See the README.
+          </p>
+        ) : (
+          <>
+            <p className="mt-2 text-sm text-slate-600">Sending from {email.address}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Clients reply to addresses like {replyAddress("…", email.address)}
+            </p>
+            {email.lastError ? (
+              <p className="mt-2 text-sm text-red-700">Last check failed: {email.lastError}</p>
+            ) : email.lastRun ? (
+              <p className="mt-2 text-sm text-emerald-700">✓ Checked for replies {ago(email.lastRun)}</p>
+            ) : (
+              <p className="mt-2 text-sm text-amber-700">Never checked yet.</p>
+            )}
+            <CheckEmailButton />
+            {email.sql ? (
+              <CopySetupSql sql={email.sql} />
+            ) : (
+              <p className="mt-3 text-sm text-amber-700">
+                Add <code>CRON_SECRET</code> in Vercel to get automatic checking every minute.
+              </p>
+            )}
           </>
         )}
       </section>

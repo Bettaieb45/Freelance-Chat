@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadClientForDevice } from "@/lib/client-device";
+import { emailConfigured } from "@/lib/email/config";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { telegramConfigured } from "@/lib/telegram/bot";
 import type { Message } from "@/lib/types";
@@ -29,6 +30,7 @@ export default async function ClientPage({ params }: PageProps<"/c/[token]">) {
       token={token}
       client={client}
       telegramAvailable={telegramConfigured()}
+      emailAvailable={emailConfigured()}
       initialMessages={((messages ?? []) as Message[]).reverse()}
     />
   );

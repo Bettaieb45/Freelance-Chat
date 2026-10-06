@@ -45,7 +45,7 @@ inbox and the client's preferred channel.
 - Inbound: each conversation has its own reply-to address; client replies by email -> parsed ->
   saved as a message in the thread
 - Strip quoted previous text from email replies
-- Provider: Resend (outbound + inbound) — see Decisions, needs a domain
+- Provider: the founder's Gmail for now (see Decisions 6); Resend once there is a domain
 
 ### Escalation ladder
 - If the client page is open -> deliver live only
@@ -75,7 +75,7 @@ branding.
 - Next.js (App Router, TypeScript) on Vercel
 - Supabase: Postgres, Auth (Google + anonymous sessions for clients), Realtime
 - Telegram Bot API via grammY, webhook route in Next.js
-- Resend for email (outbound + inbound webhook)
+- Email via the founder's Gmail (nodemailer SMTP + imapflow IMAP); Resend later with a domain
 - Web Push (web-push library, VAPID keys)
 - Tailwind CSS
 - All secrets in environment variables, never committed
@@ -133,11 +133,19 @@ branding.
 5. **Timed jobs run in Supabase, not Vercel** (Vercel Hobby cron is once a day). A Supabase
    `pg_cron` job calls `/api/cron/escalate` every few minutes via `pg_net`, authenticated with a
    `CRON_SECRET` header.
-6. **Email domain: open question for Phase 3.** The founder has only a Gmail address, no domain.
-   Resend can't send to clients or receive mail without a verified domain. Recommended: buy a
-   cheap domain (~$10/year) at Phase 3. Fallback: send via Gmail SMTP (app password) and receive
-   via Gmail plus-addressing (`you+<id>@gmail.com`) read over IMAP — free, but exposes the
-   personal Gmail address to clients. Decide before starting Phase 3.
+6. **Email goes through the founder's Gmail (Phase 3), not Resend.** No domain for now.
+   - Outbound: Gmail SMTP with an App Password (`GMAIL_ADDRESS`, `GMAIL_APP_PASSWORD`), sent
+     immediately like Telegram (Phase 4 adds the ladder). One thread per client via
+     `email_thread_message_id`.
+   - Inbound: each client has a reply address `<gmail user>+c<email_reply_token>@gmail.com`. A
+     Supabase `pg_cron` job (SQL generated on the Settings page) calls `/api/cron/email` every
+     minute with `CRON_SECRET`; it reads Gmail "All Mail" over IMAP from the last seen UID, strips
+     quoted text, skips auto-replies and our own mail, and dedupes by Message-ID (`email_inbound`).
+   - Replies from an address other than the client's are accepted but prefixed "(from x@y)".
+   - "New link + passcode" rotates the reply address. Clients can set/correct their own email
+     when choosing "By email" (no verification step yet).
+   - Trade-off accepted: clients see the personal Gmail address. Moving to a domain + Resend later
+     only needs a new sender/receiver behind `src/lib/email/`.
 
 7. **Phase 2 delivers to Telegram immediately.** When a client uses Telegram, every freelancer
    reply is sent there right away (`src/lib/delivery.ts`). Phase 4 replaces this with the
@@ -151,7 +159,8 @@ branding.
 
 ## Repo conventions
 - Schema lives in `supabase/migrations/` (one new file per change). RLS/RPC tests in
-  `supabase/tests/rls_test.sql`, run with `npm run test:db`.
+  `supabase/tests/*_test.sql` (each runs on a fresh copy of the migrated DB), run with
+  `npm run test:db`.
 - Before pushing: `npm run lint && npm run typecheck && npm test && npm run test:db`.
 - Freelancer and client devices use separate Supabase auth cookies (`src/lib/supabase/cookies.ts`).
 - Service-role client (`src/lib/supabase/admin.ts`) only after checking who is calling.

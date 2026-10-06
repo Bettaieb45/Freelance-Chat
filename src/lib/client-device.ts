@@ -7,6 +7,7 @@ export type ClientPageData = {
   id: string;
   name: string;
   driveLink: string | null;
+  email: string | null;
   preferredChannel: Channel;
   channelChosenAt: string | null;
   freelancerName: string;
@@ -24,7 +25,7 @@ export async function loadClientForDevice(
   const { data: row } = await admin
     .from("clients")
     .select(
-      "id, name, drive_link, archived, preferred_channel, channel_chosen_at, freelancers(name), telegram_links(telegram_username, telegram_name)",
+      "id, name, email, drive_link, archived, preferred_channel, channel_chosen_at, freelancers(name), telegram_links(telegram_username, telegram_name)",
     )
     .eq("magic_token", token)
     .maybeSingle();
@@ -36,6 +37,7 @@ export async function loadClientForDevice(
     id: row.id,
     name: row.name,
     driveLink: row.drive_link,
+    email: row.email,
     preferredChannel: row.preferred_channel,
     channelChosenAt: row.channel_chosen_at,
     freelancerName: freelancer?.name ?? "your freelancer",
